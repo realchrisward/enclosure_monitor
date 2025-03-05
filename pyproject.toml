@@ -1,0 +1,9 @@
+[project]
+name = "enclosure_monitor"
+version = "0.1.0"
+description = "temperature monitor app with alarm/email notifications"
+readme = "README.md"
+requires-python = "==3.12.*"
+dependencies = [
+"pyside6 == 6.7.*"
+]
