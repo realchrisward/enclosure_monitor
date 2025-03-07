@@ -10,6 +10,19 @@ instruction guide, parts list, and code for monitoring environmental enclosures
 1. open /boot/config.txt to edit `sudo nano /boot/config.txt`
 1. at end of file add entry to enable 1-wire com `dtoverlay=w1-gpio`
 1. reboot the pi `sudo reboot`
+1. add dependencies for NUT communication with UPS `sudo apt install nut`
+1. edit ups and nut config `sudo nano /etc/nut/ups.config`
+`[AMAZON UPS-TMS]
+driver = usbhid-ups
+desc = "ups for temperature monitoring system"
+port = auto
+vendorid = 0764
+productid = 0501`
+
+`sudo nano /etc/not/nut.config`
+`MODE=netserver`
+
+
 
 # test the connection with the temperature probe
 

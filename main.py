@@ -9,10 +9,30 @@ from PySide6.QtUiTools import QUiLoader
 import os
 import glob
 import re
+import subprocess
 
 
 
 # %% define functions
+def check_ups(ups_name):
+	try:
+		result = subprocess.check_output(
+			["upsc",ups_name], 
+			stderr=subprocess.STDOUT, 
+			universal_newlines=True
+		)
+		status = {}
+		for line in result.splitlines():
+			if ":" in line:
+				key, value = line.split(":",1)
+				status[key.strip()] = value.strip()
+		return status["ups.status"]
+	except subprocess.CalledProcess as e:
+		return "NA-process"
+	except Exception as e:
+		return "NA"
+	
+	
 def read_temp(device_file):
 	with open(device_file, 'r') as f:
 		lines = f.readlines()
@@ -77,6 +97,9 @@ class MainWindow(QWidget):
 		self.weekly_low = 0
 		self.daily_avg = 0
 		self.weekly_avg = 0
+		
+		self.ups_status = "NA"
+		self.ups_status_history = []
 
 
 	def action_monitor(self):
@@ -91,7 +114,21 @@ class MainWindow(QWidget):
 		self.daily_avg = sum(self.temperature_history[-60*60*24:])/len(self.temperature_history[-60*60*24:])
 		self.weekly_avg = sum(self.temperature_history)/len(self.temperature_history)
 		
-		print(f"current: {self.temperature:.2F} day_high: {self.daily_high:.2F} day_low: {self.daily_low:.2F} day_avg: {self.daily_avg:.2F}")
+		self.ups_status = check_ups("UPS_TMS")
+		self.ups_status_history.append(self.ups_status)
+		if len(self.ups_status_history) > 60:
+			self.ups_status_history = self.ups_status_history[-60:]
+		
+		print(f"current: {self.temperature:.2F} day_high: {self.daily_high:.2F} day_low: {self.daily_low:.2F} day_avg: {self.daily_avg:.2F}, ups_status: {self.ups_status}")
+		
+		if all(["NA" in i for i in self.ups_status_history]):
+			if self.alarm_notice_countdown <=0:
+				send_message('x','y')
+				self.alarm_notice_countdown += self.alarm_notice_interval_ms
+			else:
+				self.alarm_notice_countdown -= self.alarm_notice_interval_ms
+		
+		
 		
 		if self.temperature <= self.low_alarm or self.temperature >= self.high_alarm:
 			self.alarm_state = True
@@ -99,7 +136,7 @@ class MainWindow(QWidget):
 				send_message('x','y')
 				self.alarm_notice_countdown += self.alarm_notice_interval_ms
 			else:
-				self.alarm_notice_countdown -= self.monitor_timer_interval
+				self.alarm_notice_countdown -= self.monitor_timer_interval_ms
 			print("alarm")
 		if self.temperature_history[-5:] == ["NA","NA","NA","NA","NA"]:
 			print("sensor malfunction")
@@ -107,7 +144,7 @@ class MainWindow(QWidget):
 				send_message('x','y')
 				self.alarm_notice_countdown += self.alarm_notice_interval_ms
 			else:
-				self.alarm_notice_countdown -= self.monitor_timer_interval
+				self.alarm_notice_countdown -= self.monitor_timer_interval_ms
 			print("error")
 		
 
