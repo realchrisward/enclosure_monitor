@@ -14,12 +14,12 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QLabel" name="label">
+   <widget class="QLabel" name="label_cur_temp">
     <property name="geometry">
      <rect>
       <x>30</x>
-      <y>30</y>
-      <width>141</width>
+      <y>20</y>
+      <width>411</width>
       <height>21</height>
      </rect>
     </property>
@@ -27,12 +27,12 @@
      <string>Current Temperature</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label_2">
+   <widget class="QLabel" name="label_daily_high">
     <property name="geometry">
      <rect>
       <x>30</x>
-      <y>70</y>
-      <width>111</width>
+      <y>130</y>
+      <width>291</width>
       <height>16</height>
      </rect>
     </property>
@@ -40,12 +40,12 @@
      <string>24hr - High</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label_3">
+   <widget class="QLabel" name="label_daily_low">
     <property name="geometry">
      <rect>
       <x>30</x>
-      <y>100</y>
-      <width>111</width>
+      <y>160</y>
+      <width>291</width>
       <height>16</height>
      </rect>
     </property>
@@ -53,38 +53,38 @@
      <string>24hr - Low</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label_4">
+   <widget class="QLabel" name="label_weekly_avg">
     <property name="geometry">
      <rect>
       <x>30</x>
-      <y>130</y>
-      <width>111</width>
+      <y>200</y>
+      <width>291</width>
       <height>16</height>
      </rect>
     </property>
     <property name="text">
-     <string>Since Start - High</string>
+     <string>Weekly - Avg</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label_5">
+   <widget class="QLabel" name="label_weekly_high">
     <property name="geometry">
      <rect>
       <x>30</x>
-      <y>160</y>
-      <width>111</width>
+      <y>230</y>
+      <width>291</width>
       <height>16</height>
      </rect>
     </property>
     <property name="text">
-     <string>Since Start - Low</string>
+     <string>Weekly - High</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label_6">
+   <widget class="QLabel" name="label_low_alarm_set">
     <property name="geometry">
      <rect>
       <x>340</x>
-      <y>90</y>
-      <width>141</width>
+      <y>160</y>
+      <width>281</width>
       <height>21</height>
      </rect>
     </property>
@@ -92,17 +92,82 @@
      <string>Low Alarm</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label_7">
+   <widget class="QLabel" name="label_high_alarm_set">
     <property name="geometry">
      <rect>
       <x>340</x>
-      <y>40</y>
-      <width>141</width>
+      <y>130</y>
+      <width>301</width>
       <height>21</height>
      </rect>
     </property>
     <property name="text">
      <string>High Alarm</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_cur_ups">
+    <property name="geometry">
+     <rect>
+      <x>30</x>
+      <y>50</y>
+      <width>411</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>UPS Status</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_daily_avg">
+    <property name="geometry">
+     <rect>
+      <x>30</x>
+      <y>100</y>
+      <width>291</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>24hr - Avg</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_weekly_low">
+    <property name="geometry">
+     <rect>
+      <x>30</x>
+      <y>260</y>
+      <width>291</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Weekly - Low</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_alarm_status">
+    <property name="geometry">
+     <rect>
+      <x>340</x>
+      <y>210</y>
+      <width>281</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Alarm Status</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_reset_alarm">
+    <property name="geometry">
+     <rect>
+      <x>340</x>
+      <y>250</y>
+      <width>191</width>
+      <height>30</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Reset Alarm</string>
     </property>
    </widget>
   </widget>
@@ -112,7 +177,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>26</height>
+     <height>27</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuHelp">
