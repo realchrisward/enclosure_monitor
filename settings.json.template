@@ -1,0 +1,19 @@
+{
+    "sender_mail": "ward.chris.s@gmail.com",
+    "sender_pass": "hyditvdgtycmyjze",
+    "receiver_mail_list": [
+        "ward.chris.s@gmail.com",
+        "christow@bcm.edu"
+    ],
+    "ups_name": "UPS_TMS",
+    "device_dict": {
+        "probe_1": "28-4aacd4450956"
+    },
+    "low_alarm": {
+        "probe_1": 4
+    },
+    "high_alarm": {
+        "probe_1": 34
+    },
+    "alarm_notice_interval_ms": 10800000
+}

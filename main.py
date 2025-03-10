@@ -8,19 +8,30 @@ from PySide6.QtWidgets import QApplication, QWidget
 from PySide6.QtUiTools import QUiLoader
 from datetime import datetime
 
-import os
 import glob
+import json
+import os
+import numpy
 import re
+import socket
+import smtplib
 import subprocess
 
 
-import socket
-import smtplib
-
-
-
-
 # %% define functions
+def load_settings(file_path):
+	with open(file_path, 'r') as open_file:
+		settings = json.load(open_file)
+	return settings
+	
+	
+	
+def save_settings(settings,file_path):
+	with open(file_path,'w') as open_file:
+		json.dump(settings,open_file,indent=4)
+
+
+
 def send_email(message_dict,settings_dict):
 	# %% collect info
 	hostname=socket.gethostname()
@@ -86,7 +97,7 @@ def read_temp(device_file):
 		lines = f.readlines()
     
 	temp_re = re.compile("^.*t=(?P<temperature>.*)$")
-	temperature = "NA"
+	temperature = numpy.nan
 	for l in lines:
 		if "YES" in l:
 			pass
@@ -120,17 +131,10 @@ class MainWindow(QWidget):
 		os.system('modprobe w1-therm')
 		
 		self.base_dir = '/sys/bus/w1/devices/'
-		self.device_folder = glob.glob(self.base_dir + '28*')[0]
-		self.device_file = self.device_folder + '/w1_slave'
+		# self.device_folder = glob.glob(self.base_dir + '28*')[0]
+		# self.device_file = self.device_folder + '/w1_slave'
 		
-		self.settings_dict = {
-			"sender_mail" : "ward.chris.s@gmail.com",
-			"sender_pass" : "hyditvdgtycmyjze",
-			"receiver_mail_list" : [
-				"ward.chris.s@gmail.com",
-				"christow@bcm.edu"
-			]
-		}
+		self.settings_dict = load_settings('settings.json')
 		
 		# initialize timers and variables
 		self.monitor_timer = QTimer()
@@ -151,166 +155,170 @@ class MainWindow(QWidget):
 		self.daily_timer.start(1000*60*60*24)
 				
 		
-		self.low_alarm = 4
-		self.high_alarm = 34
-		self.temperature = "NA"
-		self.temperature_history = []
+		# self.low_alarm = 4
+		# self.high_alarm = 34
+		self.temperature = {k: numpy.nan for k in self.settings_dict["device_dict"].keys()}
+		self.temperature_history = {k: [numpy.nan] for k in self.settings_dict["device_dict"].keys()}
 		
 		self.alarm_state = False
 		self.alarm_notice_countdown = 0
-		self.alarm_notice_interval_ms = 3*60*60*1000
+		# self.alarm_notice_interval_ms = 3*60*60*1000
 		
-		self.daily_high = 0
-		self.daily_low = 0
-		self.weekly_high = 0
-		self.weekly_low = 0
-		self.daily_avg = 0
-		self.weekly_avg = 0
+		self.daily_high = {k: 0 for k in self.settings_dict["device_dict"].keys()}
+		self.daily_low = {k: 0 for k in self.settings_dict["device_dict"].keys()}
+		self.weekly_high = {k: 0 for k in self.settings_dict["device_dict"].keys()}
+		self.weekly_low = {k: 0 for k in self.settings_dict["device_dict"].keys()}
+		self.daily_avg = {k: 0 for k in self.settings_dict["device_dict"].keys()}
+		self.weekly_avg = {k: 0 for k in self.settings_dict["device_dict"].keys()}
 		
 		self.ups_status = "NA"
 		self.ups_status_history = []
 		self.startup_sent = False
-		self.daily_sent = False
+		# self.daily_sent = False
 
 		self.pushButton_reset_alarm.clicked.connect(self.action_reset_alarm_state)
 
 	def action_monitor(self):
-		self.temperature = read_temp(self.device_file)
-		self.temperature_history.append(self.temperature)
-		if len(self.temperature_history) > 60*60*24*7:
-			self.temperature_history = self.temperature_history[-60*60*24*7:]
-		self.daily_high = max(self.temperature_history[-60*60*24:])
-		self.daily_low = min(self.temperature_history[-60*60*24:])
-		self.weekly_high = max(self.temperature_history)
-		self.weekly_low = min(self.temperature_history)
-		self.daily_avg = sum(self.temperature_history[-60*60*24:])/len(self.temperature_history[-60*60*24:])
-		self.weekly_avg = sum(self.temperature_history)/len(self.temperature_history)
-		
-		self.label_cur_temp.setText(f"Current Temp: {self.temperature:.2F} C")
-		self.label_daily_avg.setText(f"Daily Avg: {self.daily_avg:.2F} C")
-		self.label_daily_low.setText(f"Daily Low: {self.daily_low:.2F} C")
-		self.label_daily_high.setText(f"Daily High: {self.daily_high:.2F} C")
-		self.label_weekly_avg.setText(f"Weekly Avg: {self.weekly_avg:.2F} C")
-		self.label_weekly_low.setText(f"Weekly Low: {self.weekly_low:.2F} C")
-		self.label_weekly_high.setText(f"Weekly High: {self.weekly_high:.2F} C")
-		self.label_cur_ups.setText(f"UPS Status: {self.ups_status}")
-		self.label_alarm_status.setText(f"Alarm Status: {self.alarm_state}")
-		self.label_high_alarm_set.setText(f"High Alarm SetPoint: {self.high_alarm} C")
-		self.label_low_alarm_set.setText(f"Low Alarm SetPoint: {self.low_alarm} C")
-		
-		
-		self.ups_status = check_ups("UPS_TMS")
-		self.ups_status_history.append(self.ups_status)
-		if len(self.ups_status_history) > 60:
-			self.ups_status_history = self.ups_status_history[-60:]
-		
-		print(f"current: {self.temperature:.2F} day_high: {self.daily_high:.2F} day_low: {self.daily_low:.2F} day_avg: {self.daily_avg:.2F}, ups_status: {self.ups_status}")
-		if 'OL' not in self.ups_status and 'NA' not in self.ups_status:
-			self.alarm_state = True
-			if self.alarm_notice_countdown <=0:
-				send_email(
-					{
-						'subject' : 'Power Outage Notice!',
-						'body' : f'{datetime.now()}\n\n'
-						+'UPS detected power outage\n'
-						+f'Current Temperature: {self.temperature}\n'
-						+f'UPS Status: {self.ups_status}\n'
-						+f'ALARM STATE: {self.alarm_state}\n'
-						+f'Daily AVG {self.daily_avg:.2F} Daily Low: {self.daily_low:.2F} Daily High {self.daily_high:.2F}\n'
-						+f'Weekly AVG {self.weekly_avg:.2F} Weekly Low: {self.weekly_low:.2F} Weekly High {self.weekly_high:.2F}\n'
-						+f'ALARM SETPOINTS, Low: {self.low_alarm}, High: {self.high_alarm}'
-					},
-					self.settings_dict
+		for k in self.settings_dict["device_dict"].keys():
+			self.temperature[k] = read_temp(os.path.join(self.base_dir,self.settings_dict["device_dict"][k],"w1_slave"))
+			self.temperature_history[k].append(self.temperature[k])
+			if len(self.temperature_history[k]) > 60*60*24*7:
+				self.temperature_history[k] = self.temperature_history[-60*60*24*7:]
+			#print(self.temperature_history[k])
+			self.daily_high[k] = numpy.nanmax(
+				self.temperature_history[k][-60*60*24:]
 				)
-				self.alarm_notice_countdown += self.alarm_notice_interval_ms
-			else:
-				self.alarm_notice_countdown -= self.monitor_timer_interval_ms
-		
-		
-		if all(["NA" in i for i in self.ups_status_history]):
-			self.alarm_state = True
-			if self.alarm_notice_countdown <=0:
-				send_email(
-					{
-						'subject' : 'UPS Status Malfunction!',
-						'body' : f'{datetime.now()}\n\n'
-						+'UPS status detection malfunction indicated\n'
-						+f'Current Temperature: {self.temperature}\n'
-						+f'UPS Status: {self.ups_status}\n'
-						+f'ALARM STATE: {self.alarm_state}\n'
-						+f'Daily AVG {self.daily_avg:.2F} Daily Low: {self.daily_low:.2F} Daily High {self.daily_high:.2F}\n'
-						+f'Weekly AVG {self.weekly_avg:.2F} Weekly Low: {self.weekly_low:.2F} Weekly High {self.weekly_high:.2F}\n'
-						+f'ALARM SETPOINTS, Low: {self.low_alarm}, High: {self.high_alarm}'
-					},
-					self.settings_dict
-				)
-				self.alarm_notice_countdown += self.alarm_notice_interval_ms
-			else:
-				self.alarm_notice_countdown -= self.monitor_timer_interval_ms
-		
-		
-		
-		if self.temperature <= self.low_alarm or self.temperature >= self.high_alarm:
-			self.alarm_state = True
-			if self.alarm_notice_countdown <= 0:
-				send_email(
-					{
-						'subject' : 'Enclosure Temperature Alarm!',
-						'body' : f'{datetime.now()}\n\n'
-						+'!!!Temperature Alarm!!!\n'
-						+f'Current Temperature: {self.temperature}\n'
-						+f'UPS Status: {self.ups_status}\n'
-						+f'ALARM STATE: {self.alarm_state}\n'
-						+f'Daily AVG {self.daily_avg:.2F} Daily Low: {self.daily_low:.2F} Daily High {self.daily_high:.2F}\n'
-						+f'Weekly AVG {self.weekly_avg:.2F} Weekly Low: {self.weekly_low:.2F} Weekly High {self.weekly_high:.2F}\n'
-						+f'ALARM SETPOINTS, Low: {self.low_alarm}, High: {self.high_alarm}'
-					},
-					self.settings_dict
-				)
-				self.alarm_notice_countdown += self.alarm_notice_interval_ms
-			else:
-				self.alarm_notice_countdown -= self.monitor_timer_interval_ms
-			print("alarm")
-		if self.temperature_history[-5:] == ["NA","NA","NA","NA","NA"]:
-			self.alarm_state = True
-			print("sensor malfunction")
-			if self.alarm_notice_countdown <= 0:
-				send_email(
-					{
-						'subject' : 'Sensor Malfunction Notice!',
-						'body' : f'{datetime.now()}\n\n'
-						+'Temperature sensor malfunction indicated\n'
-						+f'Current Temperature: {self.temperature}\n'
-						+f'UPS Status: {self.ups_status}\n'
-						+f'ALARM STATE: {self.alarm_state}\n'
-						+f'Daily AVG {self.daily_avg:.2F} Daily Low: {self.daily_low:.2F} Daily High {self.daily_high:.2F}\n'
-						+f'Weekly AVG {self.weekly_avg:.2F} Weekly Low: {self.weekly_low:.2F} Weekly High {self.weekly_high:.2F}\n'
-						+f'ALARM SETPOINTS, Low: {self.low_alarm}, High: {self.high_alarm}'
-					},
-					self.settings_dict
-				)
-				
-				self.alarm_notice_countdown += self.alarm_notice_interval_ms
-			else:
-				self.alarm_notice_countdown -= self.monitor_timer_interval_ms
-			print("error")
-		
+			self.daily_low[k] = numpy.nanmin(self.temperature_history[k][-60*60*24:])
+			self.weekly_high[k] = numpy.nanmax(self.temperature_history[k])
+			self.weekly_low[k] = numpy.nanmin(self.temperature_history[k])
+			self.daily_avg[k] = numpy.nanmean(self.temperature_history[k][-60*60*24:])
+			self.weekly_avg[k] = numpy.nanmean(self.temperature_history[k])
+			
+			self.ups_status = check_ups(self.settings_dict["ups_name"])
+			self.ups_status_history.append(self.ups_status)
+			if len(self.ups_status_history) > 60:
+				self.ups_status_history = self.ups_status_history[-60:]
+			
+			# print(f"current: {self.temperature:.2F} day_high: {self.daily_high:.2F} day_low: {self.daily_low:.2F} day_avg: {self.daily_avg:.2F}, ups_status: {self.ups_status}")
+			if 'OL' not in self.ups_status and 'NA' not in self.ups_status:
+				self.alarm_state = True
+				if self.alarm_notice_countdown <=0:
+					send_email(
+						{
+							'subject' : 'Power Outage Notice!',
+							'body' : f'{datetime.now()}\n\n'
+							+'UPS detected power outage\n'
+							+f'Current Temperature: {("|").join([f"{key}:{val:.2F} C" for key,val in self.temperature.items()])}\n'
+							+f'UPS Status: {self.ups_status}\n'
+							+f'ALARM STATE: {self.alarm_state}\n'
+							+f'Daily AVG {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_avg.items()])} Daily Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_low.items()])} Daily High {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_high.items()])}\n'
+							+f'Weekly AVG {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_avg.items()])} Weekly Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_low.items()])} Weekly High {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_high.items()])}\n'
+							+f'ALARM SETPOINTS, Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.settings_dict["low_alarm"].items()])}, High: {("|").join([f"{key}:{val:.2F} C" for key,val in self.settings_dict["high_alarm"].items()])}'
+						},
+						self.settings_dict
+					)
+					self.alarm_notice_countdown += self.settings_dict["alarm_notice_interval_ms"]
+				else:
+					self.alarm_notice_countdown -= self.monitor_timer_interval_ms
+			
+			
+			if all(["NA" in i for i in self.ups_status_history]):
+				self.alarm_state = True
+				if self.alarm_notice_countdown <=0:
+					send_email(
+						{
+							'subject' : 'UPS Status Malfunction!',
+							'body' : f'{datetime.now()}\n\n'
+							+'UPS detected power outage\n'
+							+f'Current Temperature: {("|").join([f"{key}:{val:.2F} C" for key,val in self.temperature.items()])}\n'
+							+f'UPS Status: {self.ups_status}\n'
+							+f'ALARM STATE: {self.alarm_state}\n'
+							+f'Daily AVG {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_avg.items()])} Daily Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_low.items()])} Daily High {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_high.items()])}\n'
+							+f'Weekly AVG {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_avg.items()])} Weekly Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_low.items()])} Weekly High {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_high.items()])}\n'
+							+f'ALARM SETPOINTS, Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.settings_dict["low_alarm"].items()])}, High: {("|").join([f"{key}:{val:.2F} C" for key,val in self.settings_dict["high_alarm"].items()])}'
+						},
+						self.settings_dict
+					)
+					self.alarm_notice_countdown += self.settings_dict["alarm_notice_interval_ms"]
+				else:
+					self.alarm_notice_countdown -= self.monitor_timer_interval_ms
+			
+			
+			
+			if self.temperature[k] <= self.settings_dict["low_alarm"][k] or self.temperature[k] >= self.settings_dict["high_alarm"][k]:
+				self.alarm_state = True
+				if self.alarm_notice_countdown <= 0:
+					send_email(
+						{
+							'subject' : 'Enclosure Temperature Alarm!',
+							'body' : f'{datetime.now()}\n\n'
+							+'UPS detected power outage\n'
+							++f'Current Temperature: {("|").join([f"{key}:{val:.2F} C" for key,val in self.temperature.items()])}\n'
+							+f'UPS Status: {self.ups_status}\n'
+							+f'ALARM STATE: {self.alarm_state}\n'
+							+f'Daily AVG {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_avg.items()])} Daily Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_low.items()])} Daily High {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_high.items()])}\n'
+							+f'Weekly AVG {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_avg.items()])} Weekly Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_low.items()])} Weekly High {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_high.items()])}\n'
+							+f'ALARM SETPOINTS, Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.settings_dict["low_alarm"].items()])}, High: {("|").join([f"{key}:{val:.2F} C" for key,val in self.settings_dict["high_alarm"].items()])}'
+						},
+						self.settings_dict
+					)
+					self.alarm_notice_countdown += self.settings_dict["alarm_notice_interval_ms"]
+				else:
+					self.alarm_notice_countdown -= self.monitor_timer_interval_ms
+				print("alarm")
+			if self.temperature_history[k][-5:] == [numpy.nan,numpy.nan,numpy.nan,numpy.nan,numpy.nan]:
+				self.alarm_state = True
+				print("sensor malfunction")
+				if self.alarm_notice_countdown <= 0:
+					send_email(
+						{
+							'subject' : 'Sensor Malfunction Notice!',
+							'body' : f'{datetime.now()}\n\n'
+							+'UPS detected power outage\n'
+							+f'Current Temperature: {("|").join([f"{key}:{val:.2F} C" for key,val in self.temperature.items()])}\n'
+							+f'UPS Status: {self.ups_status}\n'
+							+f'ALARM STATE: {self.alarm_state}\n'
+							+f'Daily AVG {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_avg.items()])} Daily Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_low.items()])} Daily High {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_high.items()])}\n'
+							+f'Weekly AVG {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_avg.items()])} Weekly Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_low.items()])} Weekly High {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_high.items()])}\n'
+							+f'ALARM SETPOINTS, Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.settings_dict["low_alarm"].items()])}, High: {("|").join([f"{key}:{val:.2F} C" for key,val in self.settings_dict["high_alarm"].items()])}'
+						},
+						self.settings_dict
+					)
+					self.alarm_notice_countdown += self.settings_dict["alarm_notice_interval_ms"]
+				else:
+					self.alarm_notice_countdown -= self.monitor_timer_interval_ms
+				print("error")
+					
+		self.label_cur_temp.setText(f'Current Temp: {("|").join([f"{key}:{val:.2F} C" for key,val in self.temperature.items()])}')
+		self.label_daily_avg.setText(f'Daily Avg: {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_avg.items()])}')
+		self.label_daily_low.setText(f'Daily Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_low.items()])}')
+		self.label_daily_high.setText(f'Daily High: {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_high.items()])}')
+		self.label_weekly_avg.setText(f'Weekly Avg: {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_avg.items()])}')
+		self.label_weekly_low.setText(f'Weekly Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_low.items()])}')
+		self.label_weekly_high.setText(f'Weekly High: {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_high.items()])}')
+		self.label_cur_ups.setText(f'UPS Status: {self.ups_status}')
+		self.label_alarm_status.setText(f'Alarm Status: {self.alarm_state}')
+		self.label_high_alarm_set.setText(f'High Alarm SetPoint: {("|").join([f"{key}:{val:.2F} C" for key,val in self.settings_dict["high_alarm"].items()])}')
+		self.label_low_alarm_set.setText(f'Low Alarm SetPoint: {("|").join([f"{key}:{val:.2F} C" for key,val in self.settings_dict["low_alarm"].items()])}')
+		self.label_datetime.setText(f'Current Time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+			
+	
 
-		
 	def action_daily(self):
 		send_email(
-				{
-					'subject' : 'daily status update from enclosure monitor',
-					'body' : f'{datetime.now()}\n\n'
-					+f'Current Temperature: {self.temperature}\n'
-					+f'UPS Status: {self.ups_status}\n'
-					+f'ALARM STATE: {self.alarm_state}\n'
-					+f'Daily AVG {self.daily_avg:.2F} Daily Low: {self.daily_low:.2F} Daily High {self.daily_high:.2F}\n'
-					+f'Weekly AVG {self.weekly_avg:.2F} Weekly Low: {self.weekly_low:.2F} Weekly High {self.weekly_high:.2F}\n'
-					+f'ALARM SETPOINTS, Low: {self.low_alarm}, High: {self.high_alarm}'
-				},
-				self.settings_dict
-		)
+			{
+				'subject' : 'daily status update from enclosure monitor',
+				'body' : f'{datetime.now()}\n\n'
+				+'UPS detected power outage\n'
+				+f'Current Temperature: {("|").join([f"{key}:{val:.2F} C" for key,val in self.temperature.items()])}\n'
+				+f'UPS Status: {self.ups_status}\n'
+				+f'ALARM STATE: {self.alarm_state}\n'
+				+f'Daily AVG {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_avg.items()])} Daily Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_low.items()])} Daily High {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_high.items()])}\n'
+				+f'Weekly AVG {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_avg.items()])} Weekly Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_low.items()])} Weekly High {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_high.items()])}\n'
+				+f'ALARM SETPOINTS, Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.settings_dict["low_alarm"].items()])}, High: {("|").join([f"{key}:{val:.2F} C" for key,val in self.settings_dict["high_alarm"].items()])}'
+			},
+			self.settings_dict
+			)
 
 	def action_startup(self):
 		if not self.startup_sent:
@@ -318,15 +326,17 @@ class MainWindow(QWidget):
 				{
 					'subject' : 'startup notification from enclosure monitor',
 					'body' : f'{datetime.now()}\n\n'
-					+f'Current Temperature: {self.temperature}\n'
+					+'UPS detected power outage\n'
+					+f'Current Temperature: {("|").join([f"{key}:{val:.2F} C" for key,val in self.temperature.items()])}\n'
 					+f'UPS Status: {self.ups_status}\n'
 					+f'ALARM STATE: {self.alarm_state}\n'
-					+f'Daily AVG {self.daily_avg:.2F} Daily Low: {self.daily_low:.2F} Daily High {self.daily_high:.2F}\n'
-					+f'Weekly AVG {self.weekly_avg:.2F} Weekly Low: {self.weekly_low:.2F} Weekly High {self.weekly_high:.2F}\n'
-					+f'ALARM SETPOINTS, Low: {self.low_alarm}, High: {self.high_alarm}'
+					+f'Daily AVG {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_avg.items()])} Daily Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_low.items()])} Daily High {("|").join([f"{key}:{val:.2F} C" for key,val in self.daily_high.items()])}\n'
+					+f'Weekly AVG {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_avg.items()])} Weekly Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_low.items()])} Weekly High {("|").join([f"{key}:{val:.2F} C" for key,val in self.weekly_high.items()])}\n'
+					+f'ALARM SETPOINTS, Low: {("|").join([f"{key}:{val:.2F} C" for key,val in self.settings_dict["low_alarm"].items()])}, High: {("|").join([f"{key}:{val:.2F} C" for key,val in self.settings_dict["high_alarm"].items()])}'
 				},
 				self.settings_dict
 			)
+
 			self.startup_sent = True
 	def action_reset_alarm_state(self):
 		self.alarm_state = False
