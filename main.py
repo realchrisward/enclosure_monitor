@@ -70,6 +70,9 @@ def send_email(message_dict,settings_dict):
 	
 	# terminating the session
 	s.quit()	
+	
+	# print message to terminal - infor for last sender will show
+	print(message)
 
 
 
@@ -229,7 +232,7 @@ class MainWindow(QWidget):
 						{
 							'subject' : 'UPS Status Malfunction!',
 							'body' : f'{datetime.now()}\n\n'
-							+'UPS detected power outage\n'
+							+'UPS Status Malfunction!\n'
 							+f'Current Temperature: {("|").join([f"{key}:{val:.2F} C" for key,val in self.temperature.items()])}\n'
 							+f'UPS Status: {self.ups_status}\n'
 							+f'ALARM STATE: {self.alarm_state}\n'
@@ -252,7 +255,7 @@ class MainWindow(QWidget):
 						{
 							'subject' : 'Enclosure Temperature Alarm!',
 							'body' : f'{datetime.now()}\n\n'
-							+'UPS detected power outage\n'
+							+'Enclosure Temperature Alarm!\n'
 							++f'Current Temperature: {("|").join([f"{key}:{val:.2F} C" for key,val in self.temperature.items()])}\n'
 							+f'UPS Status: {self.ups_status}\n'
 							+f'ALARM STATE: {self.alarm_state}\n'
@@ -274,7 +277,7 @@ class MainWindow(QWidget):
 						{
 							'subject' : 'Sensor Malfunction Notice!',
 							'body' : f'{datetime.now()}\n\n'
-							+'UPS detected power outage\n'
+							+'Sensor Malfunction Notice!\n'
 							+f'Current Temperature: {("|").join([f"{key}:{val:.2F} C" for key,val in self.temperature.items()])}\n'
 							+f'UPS Status: {self.ups_status}\n'
 							+f'ALARM STATE: {self.alarm_state}\n'
@@ -309,7 +312,7 @@ class MainWindow(QWidget):
 			{
 				'subject' : 'daily status update from enclosure monitor',
 				'body' : f'{datetime.now()}\n\n'
-				+'UPS detected power outage\n'
+				+'daily status update from enclosure monitor\n'
 				+f'Current Temperature: {("|").join([f"{key}:{val:.2F} C" for key,val in self.temperature.items()])}\n'
 				+f'UPS Status: {self.ups_status}\n'
 				+f'ALARM STATE: {self.alarm_state}\n'
@@ -326,7 +329,7 @@ class MainWindow(QWidget):
 				{
 					'subject' : 'startup notification from enclosure monitor',
 					'body' : f'{datetime.now()}\n\n'
-					+'UPS detected power outage\n'
+					+'startup notification from enclosure monitor\n'
 					+f'Current Temperature: {("|").join([f"{key}:{val:.2F} C" for key,val in self.temperature.items()])}\n'
 					+f'UPS Status: {self.ups_status}\n'
 					+f'ALARM STATE: {self.alarm_state}\n'
@@ -338,6 +341,7 @@ class MainWindow(QWidget):
 			)
 
 			self.startup_sent = True
+			
 	def action_reset_alarm_state(self):
 		self.alarm_state = False
 	

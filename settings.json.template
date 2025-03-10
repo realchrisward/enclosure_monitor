@@ -1,19 +1,22 @@
 {
-    "sender_mail": "ward.chris.s@gmail.com",
-    "sender_pass": "hyditvdgtycmyjze",
+    "sender_mail": "<sending email for any alarms and notifications>",
+    "sender_pass": "<passcode for the sending email address (google app pass)",
     "receiver_mail_list": [
-        "ward.chris.s@gmail.com",
-        "christow@bcm.edu"
+        "<recipient email address 1>",
+        "<recipient email address 2>",
     ],
-    "ups_name": "UPS_TMS",
+    "ups_name": "<name of ups for upsc calls>",
     "device_dict": {
-        "probe_1": "28-4aacd4450956"
+        "<name for enclosure/probe_1>": "<address of probe - typically starts with 28>",
+        "<name for enclosure/probe_2>": "<address of probe - typically starts with 28>"
     },
     "low_alarm": {
-        "probe_1": 4
+        "<name for enclosure/probe_1>": 4,
+        "<name for enclosure/probe_2>": 4
     },
     "high_alarm": {
-        "probe_1": 34
+        "<name for enclosure/probe_1>": 34,
+        "<name for enclosure/probe_2>": 34
     },
     "alarm_notice_interval_ms": 10800000
 }
