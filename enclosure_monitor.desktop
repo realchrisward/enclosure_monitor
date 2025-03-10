@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Enclosure Monitor
+Comment=Runs the Enclosure Monitor on startup
+Exec=/home/mmpc/git/enclosure_monitor/run.sh
+Terminal=true
